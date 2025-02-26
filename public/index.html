@@ -1,0 +1,38 @@
+const indexHtml = `
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Магазин</title>
+    <style>
+        .product-card {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 10px;
+            border-radius: 5px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>Каталог товаров</h1>
+    <div id="products"></div>
+    <script>
+        fetch('/products')
+            .then(response => response.json())
+            .then(products => {
+                const container = document.getElementById('products');
+                container.innerHTML = products.map(p => `
+                    <div class="product-card">
+                        <h2>${p.name}</h2>
+                        <p>Цена: ${p.price} руб.</p>
+                        <p>${p.description}</p>
+                    </div>
+                `).join('');
+            });
+    </script>
+</body>
+</html>
+`;
+fs.writeFileSync(path.join(__dirname, 'public', 'index.html'), indexHtml);

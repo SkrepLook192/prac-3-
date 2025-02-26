@@ -1,0 +1,8 @@
+const productsJson = `[
+    { "id": 1, "name": "Ноутбук", "price": 50000, "description": "Мощный ноутбук для работы и игр", "categories": ["Электроника"] },
+    { "id": 2, "name": "Смартфон", "price": 30000, "description": "Современный смартфон с отличной камерой", "categories": ["Электроника"] },
+    { "id": 3, "name": "Кофеварка", "price": 7000, "description": "Отличная кофеварка для дома", "categories": ["Бытовая техника"] },
+    { "id": 4, "name": "Чайник", "price": 2000, "description": "Электрический чайник с автоотключением", "categories": ["Бытовая техника"] },
+    { "id": 5, "name": "Умные часы", "price": 15000, "description": "Стильные умные часы с множеством функций", "categories": ["Электроника", "Аксессуары"] }
+]`;
+fs.writeFileSync('products.json', productsJson);
