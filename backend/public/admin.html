@@ -4,6 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Админ-панель</title>
+    <style>
+        #chat {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            background: #f9f9f9;
+        }
+        .admin-msg {
+            color: red;
+            font-weight: bold;
+        }
+        .user-msg {
+            color: blue;
+        }
+    </style>
 </head>
 <body>
     <h1>Добавление товара</h1>
@@ -15,7 +32,13 @@
         <button type="submit">Добавить</button>
     </form>
 
+    <h2>Чат поддержки</h2>
+    <div id="chat"></div>
+    <input type="text" id="messageInput" placeholder="Введите сообщение">
+    <button onclick="sendMessage()">Отправить</button>
+
     <script>
+        // Обработка формы добавления товара
         document.getElementById("product-form").addEventListener("submit", async function(event) {
             event.preventDefault();
 
@@ -26,18 +49,49 @@
                 categories: document.getElementById("categories").value.split(",").map(c => c.trim())
             };
 
-            const response = await fetch("http://localhost:8080/products", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify([product])
-            });
+            try {
+                const response = await fetch("http://localhost:8080/products", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify([product])
+                });
 
-            if (response.ok) {
-                alert("Товар добавлен!");
-            } else {
-                alert("Ошибка при добавлении товара");
+                if (response.ok) {
+                    alert("Товар добавлен!");
+                    document.getElementById("product-form").reset();
+                } else {
+                    throw new Error("Ошибка при добавлении товара");
+                }
+            } catch (error) {
+                alert(error.message);
             }
         });
+
+        // === ЧАТ ===
+        const ws = new WebSocket('ws://localhost:4000');
+        const chat = document.getElementById('chat');
+
+        // При получении сообщения от пользователя
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            let cssClass = message.from === 'admin' ? 'admin-msg' : 'user-msg'; // Проверяем, от кого сообщение
+            chat.innerHTML += `<p class="${cssClass}">${message.from}: ${message.text}</p>`;
+            chat.scrollTop = chat.scrollHeight; // Автопрокрутка вниз
+        };
+
+        // Отправка сообщения от администратора
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            if (input.value.trim() !== '') {
+                const message = {
+                    type: 'chat',
+                    from: 'admin',  // Админ отправляет сообщение
+                    text: input.value
+                };
+                ws.send(JSON.stringify(message));
+                input.value = '';  // Очистка поля ввода
+            }
+        }
     </script>
 </body>
 </html>

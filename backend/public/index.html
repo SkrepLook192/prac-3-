@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -13,24 +12,123 @@
             border-radius: 5px;
             box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
         }
+        #chat {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 200px;
+            overflow-y: auto;
+            background: #f9f9f9;
+        }
+        .admin-msg {
+            color: red;
+            font-weight: bold;
+        }
+        .user-msg {
+            color: blue;
+        }
     </style>
 </head>
 <body>
     <h1>Каталог товаров</h1>
     <div id="products"></div>
+
+    <h2>Чат</h2>
+    <div id="chat"></div>
+    <input type="text" id="messageInput" placeholder="Введите сообщение">
+    <button onclick="sendMessage()">Отправить</button>
+
     <script>
-        fetch('/products')
-            .then(response => response.json())
-            .then(products => {
-                const container = document.getElementById('products');
-                container.innerHTML = products.map(p => `
-                    <div class="product-card">
-                        <h2>${p.name}</h2>
-                        <p>Цена: ${p.price} руб.</p>
-                        <p>${p.description}</p>
-                    </div>
-                `).join('');
-            });
+        let clientId = null;
+    
+        // Генерация уникального ID для каждой вкладки
+        const tabId = localStorage.getItem('tabId') || generateTabId();
+        if (!localStorage.getItem('tabId')) {
+            localStorage.setItem('tabId', tabId);
+        }
+    
+        console.log(`Мой tabId: ${tabId}`); // Логирование tabId для отладки
+    
+        function generateTabId() {
+            return 'tab-' + Math.random().toString(36).substr(2, 9);
+        }
+    
+        // === ЗАГРУЗКА ТОВАРОВ ЧЕРЕЗ GraphQL ===
+        fetch('/graphql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                query: `{
+                    products {
+                        id
+                        name
+                        price
+                        description
+                    }
+                }`
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            const products = data.data.products;
+            const container = document.getElementById('products');
+            container.innerHTML = products.map(p => `
+                <div class="product-card">
+                    <h2>${p.name}</h2>
+                    <p>Цена: ${p.price} руб.</p>
+                    <p>${p.description}</p>
+                </div>
+            `).join('');
+        })
+        .catch(error => console.error("Ошибка загрузки данных:", error));
+    
+        // === ЧАТ НА WebSocket ===
+        const ws = new WebSocket('ws://localhost:4000');
+        const chat = document.getElementById('chat');
+    
+        ws.onmessage = (event) => {
+            const message = JSON.parse(event.data);
+            console.log('Получено сообщение:', message);
+    
+            if (message.type === 'setClientId') {
+                clientId = message.clientId;
+                console.log(`Мой уникальный ID: ${clientId}`);
+            } else if (message.type === 'chat') {
+                // Проверка, что сообщение пришло только для текущей вкладки
+                console.log(`Получено сообщение для tabId: ${message.tabId}, текущий tabId: ${tabId}`);
+    
+                if (message.tabId === tabId) {
+                    let cssClass = message.from === clientId ? 'user-msg' : 'admin-msg';
+                    const messageElement = document.createElement('p');
+                    messageElement.className = cssClass;
+                    messageElement.textContent = message.text;
+                    chat.appendChild(messageElement);
+                    chat.scrollTop = chat.scrollHeight; // Автопрокрутка вниз
+                }
+            }
+        };
+    
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            
+            if (input.value.trim() !== '' && clientId) {
+                // Логирование перед отправкой
+                console.log(`Отправляю сообщение: ${input.value}, tabId: ${tabId}`);
+    
+                // Отправляем сообщение с уникальным tabId
+                ws.send(JSON.stringify({
+                    type: 'chat',
+                    text: input.value,
+                    tabId: tabId  // Отправляем tabId, чтобы сообщения не приходили в другие вкладки
+                }));
+                input.value = ''; // Очистка поля ввода
+            }
+        }
+    
+        // Очистка localStorage при закрытии вкладки
+        window.addEventListener('beforeunload', () => {
+            localStorage.removeItem('tabId');
+        });
     </script>
 </body>
 </html>
